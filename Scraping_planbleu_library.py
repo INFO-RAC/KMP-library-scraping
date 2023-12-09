@@ -3,6 +3,7 @@
 Created on Thu Aug 31 16:31:31 2023
 
 @author: Alessandro
+Code for scraping Plan-Bleu library
 """
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -52,34 +53,37 @@ for tip in range(2, 48):
         library = library.append({'handle': a_handle, 'title': a_title, 'date': a_date, 'document_type': 'pubblication'}, ignore_index=True)
 
 
-library.to_excel('Plan_bleau_library_scraping_draft.xlsx', index=False)
+df_planbleau=library
 
-#sostituire il link con quello per il download
+for index, row in df_planbleau.iterrows():
+    link_sub = row['handle']
 
-df_planbleau=pd.read_excel('Plan_bleau_library_scraping_draft.xlsx')
+    try:
+        response_sub = requests.get(link_sub)
+        response_sub.raise_for_status()
 
-library_complete = pd.DataFrame(columns=["title", "date", "handle", "language", "download", 'document_type'])
-for index,row in df_planbleau.iterrows():
-    link_sub=row['handle']
-    response_sub = requests.get(link_sub)
-    response_sub.raise_for_status()
-    soup_sub = BeautifulSoup(response_sub.content, "html.parser")
-    
-    div_links = soup_sub.find_all('div', class_='files-container')
-    for element_sub in div_links:
-        a_links=element_sub.find_all('a')
-        for a_link in a_links:
-            a_handle=link_sub
-            a_title=row['title']
+        soup_sub = BeautifulSoup(response_sub.content, "html.parser")
+
+        div_links = soup_sub.find_all('div', class_='files-container')
+
+        for element_sub in div_links:
+            a_link = element_sub.find('a')
+            a_handle = link_sub
+            a_title = row['title']
             a_date = row['date']
+
             if a_link:
-                a_link=a_link['href']
+                a_link = a_link['href']
             else:
-                a_link='no_link'
+                a_link = 'no_link'
 
-        # Aggiungi i dati al DataFrame
+            # Aggiungi i dati al DataFrame
+            library = library.append({'handle': a_handle, 'title': a_title, 'date': a_date, 'document_type': 'pubblication', 'download': a_link}, ignore_index=True)
 
-            library_complete = library_complete.append({'handle': a_handle, 'title': a_title, 'date': a_date, 'document_type': 'pubblication','download': a_link}, ignore_index=True)
+    except requests.exceptions.RequestException as e:
+        print(f"Errore durante la richiesta HTTP per il link {link_sub}: {e}")
+        continue  # Passa alla prossima iterazione
 
-library_complete.to_excel('Plan_bleau_library_scraping_complete.xlsx', index=False)
-        
+
+
+library.to_excel('Plan_bleau_library_scraping_complete.xlsx', index=False)
